@@ -1,4 +1,11 @@
-import React from 'react';
+// ============================================================================
+// EXERCISE LIST ESTUDIANTE - MATUC LTI EXERCISE COMPOSER FRONTEND
+// ============================================================================
+// Archivo: src/pages/student/ExerciseList.tsx
+// Propósito: Lista de ejercicios para estudiantes SIN datos de muestra
+// Compatible con API real y estados limpios
+
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -7,212 +14,333 @@ import {
     Clock,
     Trophy,
     BookOpen,
-    Target
+    Target,
+    RefreshCw,
+    AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-// Mock data
-const mockExercises = [
-    {
-        esid: '1',
-        titulo: 'Álgebra Lineal - Vectores',
-        descripcion: 'Ejercicios sobre operaciones básicas con vectores.',
-        totalPreguntas: 8,
-        completado: false,
-        puntaje: null,
-        fechaVencimiento: '2024-02-15',
-    },
-    {
-        esid: '2',
-        titulo: 'Cálculo Diferencial',
-        descripcion: 'Límites, derivadas y aplicaciones del cálculo.',
-        totalPreguntas: 12,
-        completado: true,
-        puntaje: 87,
-        fechaVencimiento: '2024-02-20',
-    },
-    {
-        esid: '3',
-        titulo: 'Probabilidades Básicas',
-        descripcion: 'Conceptos fundamentales de probabilidad.',
-        totalPreguntas: 6,
-        completado: false,
-        puntaje: null,
-        fechaVencimiento: '2024-02-25',
-    },
-];
+import { getExerciseSets } from '../../services/exerciseSetService';
+import { ExerciseSetBase } from '../../types/shared';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+
+// ============================================================================
+// INTERFACES
+// ============================================================================
+
+interface ExerciseStats {
+    totalExercises: number;
+    completedCount: number;
+    averageScore: number;
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 const ExerciseList: React.FC = () => {
-    const completedCount = mockExercises.filter(ex => ex.completado).length;
-    const averageScore = mockExercises
-        .filter(ex => ex.puntaje)
-        .reduce((sum, ex) => sum + ex.puntaje!, 0) / mockExercises.filter(ex => ex.puntaje).length || 0;
+    // Estados
+    const [exercises, setExercises] = useState<ExerciseSetBase[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [stats, setStats] = useState<ExerciseStats>({
+        totalExercises: 0,
+        completedCount: 0,
+        averageScore: 0
+    });
 
-    return (
-        <div className="space-y-8">
+    // ============================================================================
+    // EFECTOS Y CARGA DE DATOS
+    // ============================================================================
 
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center space-y-4"
-            >
-                <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-primary-600 via-purple-600 to-accent-600 bg-clip-text text-transparent">
-                    Mis Ejercicios
-                </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                    Completa los ejercicios asignados y mejora tu conocimiento.
+    useEffect(() => {
+        loadExercises();
+    }, []);
+
+    useEffect(() => {
+        if (exercises.length > 0) {
+            calculateStats();
+        }
+    }, [exercises]);
+
+    const loadExercises = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const response = await getExerciseSets({ page: 1, limit: 50 });
+
+            if (response.items) {
+                // Filtrar solo ejercicios publicados para estudiantes
+                const publishedExercises = response.items.filter(ex =>
+                    ex.publicado && ex.estado === 'published'
+                );
+                setExercises(publishedExercises);
+            } else {
+                setExercises([]);
+            }
+
+        } catch (err: any) {
+            console.error('Error loading exercises:', err);
+            setError('Error al cargar los ejercicios');
+            toast.error('No se pudieron cargar los ejercicios');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const calculateStats = () => {
+        // TODO: Cuando tengamos intentos de estudiantes reales
+        // const completedCount = exercises.filter(ex => ex.completado).length;
+        // const averageScore = exercises
+        //     .filter(ex => ex.puntaje)
+        //     .reduce((sum, ex) => sum + ex.puntaje!, 0) / exercises.filter(ex => ex.puntaje).length || 0;
+
+        // TEMPORAL: Stats básicas mientras no tengamos intentos
+        const newStats: ExerciseStats = {
+            totalExercises: exercises.length,
+            completedCount: 0, // Sin intentos aún
+            averageScore: 0    // Sin puntajes aún
+        };
+
+        setStats(newStats);
+    };
+
+    // ============================================================================
+    // RENDER HELPERS
+    // ============================================================================
+
+    const renderStats = () => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card>
+                <Card.Content>
+                    <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-blue-100 rounded-full">
+                            <BookOpen className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                {stats.totalExercises}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Ejercicios disponibles
+                            </p>
+                        </div>
+                    </div>
+                </Card.Content>
+            </Card>
+
+            <Card>
+                <Card.Content>
+                    <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-green-100 rounded-full">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                {stats.completedCount}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Completados
+                            </p>
+                        </div>
+                    </div>
+                </Card.Content>
+            </Card>
+
+            <Card>
+                <Card.Content>
+                    <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-yellow-100 rounded-full">
+                            <Trophy className="h-6 w-6 text-yellow-600" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                                {stats.averageScore > 0 ? `${Math.round(stats.averageScore)}%` : '--'}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Promedio
+                            </p>
+                        </div>
+                    </div>
+                </Card.Content>
+            </Card>
+        </div>
+    );
+
+    const renderEmptyState = () => (
+        <Card className="text-center py-16">
+            <Card.Content>
+                <Target className="h-16 w-16 text-gray-400 mx-auto mb-6" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    No hay ejercicios disponibles
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    Tu instructor aún no ha publicado ejercicios. Vuelve más tarde.
                 </p>
-            </motion.div>
+                <Button onClick={loadExercises} variant="outline">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Actualizar
+                </Button>
+            </Card.Content>
+        </Card>
+    );
 
-            {/* Stats Cards */}
+    const renderErrorState = () => (
+        <Card className="text-center py-16 border-red-200 bg-red-50 dark:bg-red-900/20">
+            <Card.Content>
+                <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-6" />
+                <h3 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">
+                    Error al cargar ejercicios
+                </h3>
+                <p className="text-red-600 dark:text-red-300 mb-6">
+                    {error || 'Hubo un problema al conectar con el servidor.'}
+                </p>
+                <Button onClick={loadExercises} variant="outline">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reintentar
+                </Button>
+            </Card.Content>
+        </Card>
+    );
+
+    const renderExerciseCard = (exercise: ExerciseSetBase, index: number) => {
+        // TODO: Cuando tengamos intentos de estudiantes
+        // const isCompleted = exercise.completado;
+        // const score = exercise.puntaje;
+
+        const isCompleted = false; // TEMPORAL
+        const score = null;        // TEMPORAL
+
+        return (
             <motion.div
+                key={exercise.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                transition={{ duration: 0.3, delay: index * 0.1 }}
             >
-                <motion.div
-                    whileHover={{ y: -4 }}
-                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/30 shadow-elegant"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Completados</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                                {completedCount}/{mockExercises.length}
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
-                            <CheckCircle className="h-6 w-6 text-white" />
-                        </div>
-                    </div>
-                </motion.div>
+                <Card className={`hover:shadow-lg transition-shadow ${isCompleted ? 'border-green-200 bg-green-50 dark:bg-green-900/10' : ''
+                    }`}>
+                    <Card.Header>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                    {exercise.titulo}
+                                </h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                    {exercise.descripcion}
+                                </p>
+                            </div>
 
-                <motion.div
-                    whileHover={{ y: -4 }}
-                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/30 shadow-elegant"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Promedio</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                                {averageScore ? `${Math.round(averageScore)}%` : '--'}
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600">
-                            <Trophy className="h-6 w-6 text-white" />
-                        </div>
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    whileHover={{ y: -4 }}
-                    className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/30 shadow-elegant"
-                >
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">Pendientes</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                                {mockExercises.length - completedCount}
-                            </p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
-                            <Target className="h-6 w-6 text-white" />
-                        </div>
-                    </div>
-                </motion.div>
-            </motion.div>
-
-            {/* Exercises List */}
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="space-y-6"
-            >
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    Lista de Ejercicios
-                </h2>
-
-                <div className="space-y-4">
-                    {mockExercises.map((exercise, index) => {
-                        const Icon = exercise.completado ? CheckCircle : Play;
-                        const statusColor = exercise.completado
-                            ? 'from-green-500 to-green-600'
-                            : 'from-primary-500 to-accent-500';
-
-                        return (
-                            <motion.div
-                                key={exercise.esid}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 * index }}
-                                whileHover={{ y: -2 }}
-                                className="relative group"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-accent-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                                <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-gray-700/30 shadow-elegant">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center space-x-3 mb-2">
-                                                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                                                    {exercise.titulo}
-                                                </h3>
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${exercise.completado
-                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                                                    }`}>
-                                                    {exercise.completado ? 'Completado' : 'Pendiente'}
-                                                </span>
-                                            </div>
-
-                                            <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                                {exercise.descripcion}
-                                            </p>
-
-                                            <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
-                                                <div className="flex items-center space-x-2">
-                                                    <BookOpen className="h-4 w-4" />
-                                                    <span>{exercise.totalPreguntas} preguntas</span>
-                                                </div>
-
-                                                {exercise.completado && exercise.puntaje && (
-                                                    <div className="flex items-center space-x-2">
-                                                        <Trophy className="h-4 w-4" />
-                                                        <span>{exercise.puntaje}% obtenido</span>
-                                                    </div>
-                                                )}
-
-                                                <div className="flex items-center space-x-2">
-                                                    <Clock className="h-4 w-4" />
-                                                    <span>Vence {new Date(exercise.fechaVencimiento).toLocaleDateString()}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Action Button */}
-                                        <div className="ml-6">
-                                            <Link to={`/student/exercise/${exercise.esid}`}>
-                                                <motion.button
-                                                    whileHover={{ scale: 1.05 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    className={`flex items-center space-x-3 px-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all duration-300 bg-gradient-to-r ${statusColor}`}
-                                                >
-                                                    <Icon className="h-5 w-5" />
-                                                    <span>
-                                                        {exercise.completado ? 'Ver Resultado' : 'Comenzar'}
-                                                    </span>
-                                                </motion.button>
-                                            </Link>
-                                        </div>
-                                    </div>
+                            {isCompleted && (
+                                <div className="flex items-center space-x-2">
+                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                    {score && (
+                                        <span className="text-sm font-medium text-green-600">
+                                            {score}%
+                                        </span>
+                                    )}
                                 </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
+                            )}
+                        </div>
+                    </Card.Header>
+
+                    <Card.Content>
+                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            <div className="flex items-center space-x-4">
+                                <span className="flex items-center">
+                                    <BookOpen className="h-4 w-4 mr-1" />
+                                    {exercise.preguntas.length} preguntas
+                                </span>
+                                <span className="flex items-center">
+                                    <Target className="h-4 w-4 mr-1" />
+                                    {exercise.configuracion.intentos} intentos
+                                </span>
+                                {exercise.configuracion.tiempo && (
+                                    <span className="flex items-center">
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        {exercise.configuracion.tiempo} min
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {exercise.instrucciones && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-4 border border-blue-200 dark:border-blue-800">
+                                <p className="text-blue-800 dark:text-blue-200 text-sm">
+                                    <strong>Instrucciones:</strong> {exercise.instrucciones}
+                                </p>
+                            </div>
+                        )}
+                    </Card.Content>
+
+                    <Card.Footer>
+                        <div className="flex items-center justify-between w-full">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                Creado: {new Date(exercise.fechaCreacion).toLocaleDateString('es-ES')}
+                            </div>
+
+                            <Link to={`/student/exercise/${exercise.id}`}>
+                                <Button
+                                    className={`${isCompleted
+                                            ? 'bg-green-600 hover:bg-green-700'
+                                            : 'bg-blue-600 hover:bg-blue-700'
+                                        }`}
+                                >
+                                    <Play className="h-4 w-4 mr-2" />
+                                    {isCompleted ? 'Ver Resultado' : 'Comenzar'}
+                                </Button>
+                            </Link>
+                        </div>
+                    </Card.Footer>
+                </Card>
             </motion.div>
+        );
+    };
+
+    // ============================================================================
+    // RENDER PRINCIPAL
+    // ============================================================================
+
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                {/* Header */}
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center mb-8"
+                >
+                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                        Mis Ejercicios
+                    </h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">
+                        Completa los ejercicios asignados y mejora tu conocimiento.
+                    </p>
+                </motion.div>
+
+                {/* Stats */}
+                {!error && renderStats()}
+
+                {/* Content */}
+                {loading ? (
+                    <div className="text-center py-12">
+                        <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600 dark:text-gray-400">Cargando ejercicios...</p>
+                    </div>
+                ) : error ? (
+                    renderErrorState()
+                ) : exercises.length === 0 ? (
+                    renderEmptyState()
+                ) : (
+                    <div className="space-y-6">
+                        {exercises.map(renderExerciseCard)}
+                    </div>
+                )}
+
+            </div>
         </div>
     );
 };
