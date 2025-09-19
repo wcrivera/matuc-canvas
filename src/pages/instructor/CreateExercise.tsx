@@ -1,503 +1,325 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Save, 
-  Plus, 
-  Trash2, 
+// ============================================================================
+// PÁGINA CREAR EXERCISE - MATUC LTI EXERCISE COMPOSER FRONTEND
+// ============================================================================
+// Archivo: src/pages/instructor/CreateExercise.tsx
+// Propósito: Página para crear nuevos Exercise Sets
+// Compatible con backend API y navegación del router
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
   ArrowLeft,
   BookOpen,
+  CheckCircle,
+  Plus,
   Settings,
-  Eye,
-  CheckCircle
+  Users,
+  Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface Question {
-  id: string;
-  titulo: string;
-  enunciado: string;
-  tipo: 'multiple' | 'verdadero_falso' | 'texto_corto' | 'numerico';
-  orden: number;
-  config: {
-    opciones?: string[];
-    tolerancia?: number;
-    caseSensitive?: boolean;
-  };
-  respuestaCorrecta: any;
-  feedback: {
-    correcto: string;
-    incorrecto: string;
-  };
-  puntos: number;
-}
+import ExerciseSetForm from '../../components/forms/ExerciseSetForm';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import { ExerciseSetBase } from '../../types/shared';
+import { checkApiHealth } from '../../services/api';
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 const CreateExercise: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'info' | 'questions' | 'settings'>('info');
-  
-  // Form state
-  const [exerciseData, setExerciseData] = useState({
-    titulo: '',
-    descripcion: '',
-    instrucciones: '',
-  });
+  const location = useLocation();
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  // Estados
+  const [isApiHealthy, setIsApiHealthy] = useState<boolean | null>(null);
+  const [currentStep, setCurrentStep] = useState<'form' | 'success'>('form');
+  const [createdExercise, setCreatedExercise] = useState<ExerciseSetBase | null>(null);
 
-  const questionTypes = [
-    { value: 'multiple', label: 'Opción Múltiple', icon: '⭕' },
-    { value: 'verdadero_falso', label: 'Verdadero/Falso', icon: '✅' },
-    { value: 'texto_corto', label: 'Texto Corto', icon: '📝' },
-    { value: 'numerico', label: 'Numérico', icon: '🔢' },
-  ];
+  // Obtener cursoId de query params si viene desde una página específica
+  const searchParams = new URLSearchParams(location.search);
+  const cursoId = searchParams.get('cursoId') || undefined;
 
-  const addQuestion = () => {
-    const newQuestion: Question = {
-      id: Date.now().toString(),
-      titulo: '',
-      enunciado: '',
-      tipo: 'multiple',
-      orden: questions.length + 1,
-      config: {},
-      respuestaCorrecta: '',
-      feedback: { correcto: '', incorrecto: '' },
-      puntos: 1,
+  // Verificar salud de la API al cargar
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const healthy = await checkApiHealth();
+        setIsApiHealthy(healthy);
+        if (!healthy) {
+          toast.error('No se puede conectar con el servidor. Verifica que esté funcionando.');
+        }
+      } catch (error) {
+        setIsApiHealthy(false);
+        console.error('Error checking API health:', error);
+      }
     };
-    setEditingQuestion(newQuestion);
+
+    checkHealth();
+  }, []);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  const handleGoBack = () => {
+    navigate('/instructor/dashboard');
   };
 
-  const saveQuestion = (question: Question) => {
-    if (questions.find(q => q.id === question.id)) {
-      setQuestions(questions.map(q => q.id === question.id ? question : q));
-    } else {
-      setQuestions([...questions, question]);
+  const handleExerciseCreated = (exerciseSet: ExerciseSetBase) => {
+    setCreatedExercise(exerciseSet);
+    setCurrentStep('success');
+    toast.success('¡Exercise Set creado exitosamente!');
+  };
+
+  const handleCancel = () => {
+    navigate('/instructor/dashboard');
+  };
+
+  const handleGoToDashboard = () => {
+    navigate('/instructor/dashboard');
+  };
+
+  const handleAddQuestions = () => {
+    if (createdExercise) {
+      // Navegar a agregar preguntas (implementaremos esto después)
+      navigate(`/instructor/exercise/${createdExercise.id}/questions`);
     }
-    setEditingQuestion(null);
-    toast.success('Pregunta guardada');
   };
 
-  const deleteQuestion = (id: string) => {
-    setQuestions(questions.filter(q => q.id !== id));
-    toast.success('Pregunta eliminada');
-  };
-
-  const saveExercise = async () => {
-    if (!exerciseData.titulo || !exerciseData.descripcion || questions.length === 0) {
-      toast.error('Completa todos los campos requeridos');
-      return;
-    }
-
-    try {
-      // Aquí iría la llamada al backend
-      toast.success('Ejercicio guardado exitosamente');
-      navigate('/instructor');
-    } catch (error) {
-      toast.error('Error al guardar el ejercicio');
+  const handleEditExercise = () => {
+    if (createdExercise) {
+      navigate(`/instructor/exercise/${createdExercise.id}/edit`);
     }
   };
 
-  const tabs = [
-    { id: 'info', label: 'Información', icon: BookOpen },
-    { id: 'questions', label: 'Preguntas', icon: Plus },
-    { id: 'settings', label: 'Configuración', icon: Settings },
-  ];
+  // ============================================================================
+  // COMPONENTES DE RENDER
+  // ============================================================================
+
+  const renderBreadcrumb = () => (
+    <div className="mb-6">
+      <nav className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+        <button
+          onClick={handleGoBack}
+          className="flex items-center hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Dashboard
+        </button>
+        <span>/</span>
+        <span className="text-gray-900 dark:text-white font-medium">
+          Crear Exercise Set
+        </span>
+      </nav>
+    </div>
+  );
+
+  const renderHealthWarning = () => {
+    if (isApiHealthy === false) {
+      return (
+        <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-900/20">
+          <Card.Content>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-red-600" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                  Problema de conectividad
+                </h3>
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  No se puede conectar con el servidor backend. Verifica que esté funcionando en el puerto 3000.
+                </p>
+              </div>
+            </div>
+          </Card.Content>
+        </Card>
+      );
+    }
+    return null;
+  };
+
+  const renderSuccessStep = () => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+      className="text-center"
+    >
+      <Card className="max-w-2xl mx-auto">
+        <Card.Content>
+          <div className="py-8">
+            {/* Success Icon */}
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/50 mb-6">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+
+            {/* Success Message */}
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              ¡Exercise Set Creado!
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
+              Tu exercise set <strong>"{createdExercise?.titulo}"</strong> ha sido creado exitosamente.
+            </p>
+
+            {/* Exercise Info */}
+            {createdExercise && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-8 text-left">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                  Información del Exercise Set:
+                </h3>
+                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                  <p><strong>ID:</strong> {createdExercise.id}</p>
+                  <p><strong>Estado:</strong> {createdExercise.estado}</p>
+                  <p><strong>Intentos permitidos:</strong> {createdExercise.configuracion.intentos}</p>
+                  <p><strong>Creado:</strong> {new Date(createdExercise.fechaCreacion).toLocaleString()}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Next Steps */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                ¿Qué quieres hacer ahora?
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button
+                  onClick={handleAddQuestions}
+                  className="flex flex-col items-center p-4 h-auto"
+                >
+                  <Plus className="h-6 w-6 mb-2" />
+                  <span className="font-medium">Agregar Preguntas</span>
+                  <span className="text-xs opacity-80">Crear preguntas anidadas</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleEditExercise}
+                  className="flex flex-col items-center p-4 h-auto"
+                >
+                  <Settings className="h-6 w-6 mb-2" />
+                  <span className="font-medium">Editar Exercise</span>
+                  <span className="text-xs opacity-80">Modificar configuración</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={handleGoToDashboard}
+                  className="flex flex-col items-center p-4 h-auto"
+                >
+                  <Users className="h-6 w-6 mb-2" />
+                  <span className="font-medium">Ver Dashboard</span>
+                  <span className="text-xs opacity-80">Ir a la lista de exercises</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card.Content>
+      </Card>
+    </motion.div>
+  );
+
+  // ============================================================================
+  // RENDER PRINCIPAL
+  // ============================================================================
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
-      >
-        <div className="flex items-center space-x-4">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate('/instructor')}
-            className="p-2 rounded-xl bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl border border-white/20 dark:border-gray-700/30 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all duration-300"
-          >
-            <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          </motion.button>
-          <div>
-            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white">
-              Crear Nuevo Ejercicio
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Diseña ejercicios interactivos con preguntas anidadas
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={saveExercise}
-          className="flex items-center space-x-2 bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-        >
-          <Save className="h-4 w-4" />
-          <span>Guardar Ejercicio</span>
-        </motion.button>
-      </motion.div>
+        {/* Breadcrumb */}
+        {renderBreadcrumb()}
 
-      {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-gray-700/30 p-1"
-      >
-        <div className="flex space-x-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            
-            return (
-              <motion.button
-                key={tab.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white shadow-lg'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white/50 dark:hover:bg-gray-700/50'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </motion.div>
+        {/* Health Warning */}
+        {renderHealthWarning()}
 
-      {/* Tab Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-          className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-gray-700/30 p-8"
-        >
-          
-          {/* Información Tab */}
-          {activeTab === 'info' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-                Información del Ejercicio
-              </h2>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Título del Ejercicio *
-                  </label>
-                  <input
-                    type="text"
-                    value={exerciseData.titulo}
-                    onChange={(e) => setExerciseData({...exerciseData, titulo: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-gray-700/50 border border-white/20 dark:border-gray-600/30 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300"
-                    placeholder="Ej: Álgebra Lineal - Vectores"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Puntos Totales
-                  </label>
-                  <input
-                    type="number"
-                    value={questions.reduce((sum, q) => sum + q.puntos, 0)}
-                    disabled
-                    className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-600 border border-white/20 dark:border-gray-600/30 text-gray-500"
-                    placeholder="Calculado automáticamente"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Descripción *
-                </label>
-                <textarea
-                  value={exerciseData.descripcion}
-                  onChange={(e) => setExerciseData({...exerciseData, descripcion: e.target.value})}
-                  rows={4}
-                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-gray-700/50 border border-white/20 dark:border-gray-600/30 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300"
-                  placeholder="Describe qué aprenderán los estudiantes con este ejercicio..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Instrucciones
-                </label>
-                <textarea
-                  value={exerciseData.instrucciones}
-                  onChange={(e) => setExerciseData({...exerciseData, instrucciones: e.target.value})}
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-gray-700/50 border border-white/20 dark:border-gray-600/30 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300"
-                  placeholder="Instrucciones adicionales para los estudiantes..."
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Preguntas Tab */}
-          {activeTab === 'questions' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  Preguntas ({questions.length})
-                </h2>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={addQuestion}
-                  className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-xl font-medium shadow-lg transition-colors duration-300"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Agregar Pregunta</span>
-                </motion.button>
-              </div>
-
-              {/* Lista de Preguntas */}
-              <div className="space-y-4">
-                {questions.map((question, index) => (
-                  <motion.div
-                    key={question.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-4 border border-white/20 dark:border-gray-600/30"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 dark:text-white">
-                          {question.titulo || `Pregunta ${index + 1}`}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {question.enunciado || 'Sin enunciado'}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                          <span>Tipo: {questionTypes.find(t => t.value === question.tipo)?.label}</span>
-                          <span>Puntos: {question.puntos}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setEditingQuestion(question)}
-                          className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => deleteQuestion(question.id)}
-                          className="p-2 rounded-lg bg-red-500 hover:bg-red-600 text-white"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-
-                {questions.length === 0 && (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No hay preguntas aún. ¡Agrega la primera!</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Configuración Tab */}
-          {activeTab === 'settings' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
-                Configuración del Ejercicio
-              </h2>
-              
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Intentos y Tiempo
-                  </h3>
-                  
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Intentos Permitidos
-                    </label>
-                    <select className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-gray-700/50 border border-white/20 dark:border-gray-600/30 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300">
-                      <option value="1">1 intento</option>
-                      <option value="2">2 intentos</option>
-                      <option value="3">3 intentos</option>
-                      <option value="unlimited">Ilimitados</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Tiempo Límite (minutos)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full px-4 py-3 rounded-xl bg-white/50 dark:bg-gray-700/50 border border-white/20 dark:border-gray-600/30 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300"
-                      placeholder="Sin límite"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Opciones de Visualización
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded text-primary-500" defaultChecked />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        Mostrar respuestas correctas al final
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded text-primary-500" defaultChecked />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        Permitir navegación entre preguntas
-                      </span>
-                    </label>
-                    
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="rounded text-primary-500" defaultChecked />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        Guardado automático
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Question Editor Modal */}
-      <AnimatePresence>
-        {editingQuestion && (
+        {/* Main Content */}
+        {currentStep === 'form' ? (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setEditingQuestion(null)}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                {editingQuestion.titulo ? 'Editar Pregunta' : 'Nueva Pregunta'}
-              </h3>
-              
-              {/* Form básico para pregunta */}
-              <div className="space-y-4">
+            {/* Page Header */}
+            <div className="mb-8">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-500 rounded-xl">
+                  <BookOpen className="h-8 w-8 text-white" />
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Título de la Pregunta
-                  </label>
-                  <input
-                    type="text"
-                    value={editingQuestion.titulo}
-                    onChange={(e) => setEditingQuestion({...editingQuestion, titulo: e.target.value})}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Ej: Cálculo de vectores"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Enunciado
-                  </label>
-                  <textarea
-                    value={editingQuestion.enunciado}
-                    onChange={(e) => setEditingQuestion({...editingQuestion, enunciado: e.target.value})}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="Describe la pregunta que deben responder..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Tipo de Pregunta
-                    </label>
-                    <select
-                      value={editingQuestion.tipo}
-                      onChange={(e) => setEditingQuestion({...editingQuestion, tipo: e.target.value as any})}
-                      className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    >
-                      {questionTypes.map(type => (
-                        <option key={type.value} value={type.value}>
-                          {type.icon} {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Puntos
-                    </label>
-                    <input
-                      type="number"
-                      value={editingQuestion.puntos}
-                      onChange={(e) => setEditingQuestion({...editingQuestion, puntos: parseInt(e.target.value) || 1})}
-                      min="1"
-                      className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-4 pt-6">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setEditingQuestion(null)}
-                    className="px-6 py-2 rounded-xl bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors duration-300"
-                  >
-                    Cancelar
-                  </motion.button>
-                  
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => saveQuestion(editingQuestion)}
-                    className="flex items-center space-x-2 px-6 py-2 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors duration-300"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    <span>Guardar Pregunta</span>
-                  </motion.button>
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    Crear Exercise Set
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Crea un nuevo exercise set con preguntas anidadas para tus estudiantes.
+                  </p>
                 </div>
               </div>
-            </motion.div>
+            </div>
+
+            {/* Instructions */}
+            <Card className="mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+              <Card.Content>
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                      <BookOpen className="h-4 w-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
+                      ¿Cómo crear un Exercise Set?
+                    </h3>
+                    <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                      <li>• Completa la información básica (título, descripción)</li>
+                      <li>• Configura los parámetros del exercise (intentos, tiempo, etc.)</li>
+                      <li>• Una vez creado, podrás agregar preguntas anidadas</li>
+                      <li>• Publica cuando esté listo para tus estudiantes</li>
+                    </ul>
+                  </div>
+                </div>
+              </Card.Content>
+            </Card>
+
+            {/* Exercise Set Form */}
+            <ExerciseSetForm
+              mode="create"
+              onSave={handleExerciseCreated}
+              onCancel={handleCancel}
+              cursoId={cursoId}
+            />
           </motion.div>
+        ) : (
+          renderSuccessStep()
         )}
-      </AnimatePresence>
+
+        {/* API Status (development only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="mt-8 bg-gray-50 dark:bg-gray-800">
+            <Card.Content>
+              <details>
+                <summary className="text-sm font-medium text-gray-600 cursor-pointer">
+                  Debug: Estado de la API
+                </summary>
+                <div className="mt-2 text-xs text-gray-500">
+                  <p>API Health: {isApiHealthy === null ? 'Checking...' : isApiHealthy ? 'Healthy' : 'Unhealthy'}</p>
+                  <p>Current Step: {currentStep}</p>
+                  <p>Curso ID: {cursoId || 'No especificado'}</p>
+                  {createdExercise && (
+                    <p>Created Exercise ID: {createdExercise.id}</p>
+                  )}
+                </div>
+              </details>
+            </Card.Content>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
