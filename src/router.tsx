@@ -1,3 +1,10 @@
+// ============================================================================
+// ROUTER PRINCIPAL - MATUC LTI EXERCISE COMPOSER FRONTEND
+// ============================================================================
+// Archivo: src/router.tsx
+// Propósito: Configuración de rutas con React Router
+// Compatible con nuevo componente ViewExercise
+
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from './components/layout/Layout';
@@ -7,6 +14,7 @@ import NotFound from './pages/NotFound';
 // Páginas Instructor
 import Dashboard from './pages/instructor/Dashboard';
 import CreateExercise from './pages/instructor/CreateExercise';
+import ViewExercise from './pages/instructor/ViewExercise';
 
 // Páginas Estudiante  
 import ExerciseList from './pages/student/ExerciseList';
@@ -32,6 +40,10 @@ const router = createBrowserRouter([
                     {
                         path: 'create-exercise',
                         element: <CreateExercise />
+                    },
+                    {
+                        path: 'exercise/:id',
+                        element: <ViewExercise />
                     }
                 ]
             },
