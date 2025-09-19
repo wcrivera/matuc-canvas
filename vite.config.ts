@@ -6,14 +6,23 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3001,
+    port: 3001,        // Frontend en puerto 3001
     host: 'localhost',
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3000',  // Backend en puerto 3000
         changeOrigin: true,
-        secure: false
+        secure: false,
+        // Logging para debugging
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('❌ Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log(`🔄 Proxy request: ${req.method} ${req.url} → ${options.target}${req.url}`);
+          });
+        }
       }
     }
   },
